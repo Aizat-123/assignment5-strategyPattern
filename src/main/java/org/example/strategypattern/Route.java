@@ -7,9 +7,15 @@ public record Route(
         double distanceKm,
         int estimatedMinutes,
         double cost,
-        double carbonEmission
+        double carbonEmission,
+        int trafficPenaltyMinutes,
+        boolean available
 ) {
     public Route {
+        if (trafficPenaltyMinutes < 0) {
+            throw new IllegalArgumentException("Traffic penalty must not be negative");
+        }
+
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException(
                     "Route id must not be blank"
