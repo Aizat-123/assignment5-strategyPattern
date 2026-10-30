@@ -36,6 +36,19 @@ public class Main {
         // Switch 3: eco friendly -> balanced.
         planner.setStrategy(new BalancedRouteStrategy(0.4, 0.3, 0.1, 0.2));
         printDecision(planner, routes, request);
+        StrategySelector selector = new StrategySelector();
+        selector.register(DeliveryPriority.URGENT, new FastestRouteStrategy());
+        selector.register(DeliveryPriority.ECONOMY, new CheapestRouteStrategy());
+        selector.register(DeliveryPriority.ECO, new EcoFriendlyRouteStrategy());
+        selector.register(DeliveryPriority.STANDARD, new BalancedRouteStrategy(0.4, 0.3, 0.1, 0.2));
+
+        System.out.println("AUTOMATIC STRATEGY SELECTION");
+        for (DeliveryPriority priority : DeliveryPriority.values()) {
+            DeliveryRequest automaticRequest = new DeliveryRequest(priority, 5000, 60, false);
+            planner.setStrategy(selector.selectStrategy(automaticRequest));
+            System.out.println("Priority: " + priority);
+            printDecision(planner, routes, automaticRequest);
+        }
     }
 
     private static void printDecision(RoutePlanner planner, List<Route> routes,
