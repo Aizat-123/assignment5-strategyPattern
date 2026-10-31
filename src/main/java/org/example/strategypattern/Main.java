@@ -49,6 +49,20 @@ public class Main {
             System.out.println("Priority: " + priority);
             printDecision(planner, routes, automaticRequest);
         }
+        System.out.println("STRATEGY COMPARISON - SAME REQUEST");
+        List<RouteStrategy> strategies = List.of(
+                new FastestRouteStrategy(), new CheapestRouteStrategy(),
+                new EcoFriendlyRouteStrategy(), new BalancedRouteStrategy(0.4, 0.3, 0.1, 0.2)
+        );
+        StrategyComparisonService comparison = new StrategyComparisonService();
+        comparison.compare(strategies, routes, request).forEach((name, decision) -> {
+            System.out.println(name);
+            System.out.println(decision.explanation());
+            for (String reason : decision.rejectedRoutes()) {
+                System.out.println("Rejected: " + reason);
+            }
+            System.out.println();
+        });
     }
 
     private static void printDecision(RoutePlanner planner, List<Route> routes,
@@ -62,3 +76,4 @@ public class Main {
         System.out.println();
     }
 }
+
