@@ -1,0 +1,85 @@
+Smart Delivery and Route Optimization Engine
+
+A console application built with Java 17+ that selects a delivery route from a predefined list. The same request can yield different results: the fastest route is not always the cheapest or the most eco-friendly. The Strategy pattern allows for swapping the selection criteria at runtime.
+
+## Running the Application
+
+Requires JDK 17 or later. From the project root, run the following in PowerShell:
+
+```powershell
+.\mvnw.cmd clean test
+java -cp target/classes org.example.strategypattern.Main
+```
+
+Alternatively, you can execute `Main.main()` in IntelliJ IDEA after importing the `pom.xml` file.
+
+## Architecture
+
+- **Context — `RoutePlanner`.** Maintains the current strategy and delegates the `plan()` call to it. The `setStrategy()` method allows changing the algorithm on the same object instance.
+- **Strategy — `RouteStrategy`.** Defines the `selectRoute(routes, request)` and `getStrategyName()` methods. The `RouteDecision` result contains the selected route, an explanation, and the reasons why other (invalid) routes were rejected.
+- **Concrete Strategies.** Five implementations are listed in the table below.
+- **`StrategySelector`** retrieves a strategy from an `EnumMap` based on the request priority. In `Main`, the following mappings are registered: URGENT → Fastest, ECONOMY → Cheapest, ECO → Eco-Friendly, and STANDARD → Balanced. The `ecoPreferred` field does not override the priority.
+- **`StrategyComparisonService`** executes a provided list of strategies against the same set of routes and the same request, returning the resulting decisions in the order of the list.
+- **`RouteMetricsCalculator`** computes the total time and cost; **`RouteConstraintChecker`** applies general constraints.
+
+| Implementation | Minimization Criterion |
+|---|---|
+| `FastestRouteStrategy` | Base time + traffic congestion penalty |
+| `CheapestRouteStrategy` | Base cost + distance × 50 ₸/km + 500 ₸ for URGENT |
+| `EcoFriendlyRouteStrategy` | CO₂ emissions + distance × 0.1; this is a heuristic estimate, not an actual measurement of emissions |
+| `BalancedRouteStrategy` | The sum of normalized time, cost, distance, and emissions, each multiplied by its respective weight |
+| `DistanceFirstStrategy` | Distance in kilometers |
+
+Availability, budget, and deadline are checked first. Values ​​equal to the specified limits are considered acceptable. If the list is empty or no route meets the criteria, a `NoSuitableRouteException` is thrown. In the event of a tie in the strategy's score, the first suitable route is retained.
+
+The `Balanced` strategy normalizes each metric across all eligible routes using the formula `(value - min) / (max - min)`. If all values ​​for a given criterion are equal, its contribution to the total score is zero. Weights are provided via the constructor; each must be a finite number between 0 and 1, and their sum must equal 1 (with a tolerance of `1e-9`). In this example, the weights are 0.40, 0.30, 0.10, and 0.20.
+
+## Demonstration
+
+In the `Main` class, a single `RoutePlanner` instance undergoes three manual strategy switches: Fastest → Cheapest → Eco Friendly → Balanced. This is followed by an automated selection based on priority, as well as a comparison of all five strategies for a single request. The initial list contains eight routes; those that are unavailable, exceed the budget, or fail to meet the deadline are excluded.
+
+Console output snippet:
+
+```text
+STRATEGY COMPARISON - SAME REQUEST
+Fastest Strategy
+Selected route: Fast
+...
+Cheapest Strategy
+Selected route: Cheap
+...
+Eco Friendly Strategy
+Selected route: Eco
+...
+Balanced Strategy
+Selected route: Balanced
+...
+Distance First Strategy
+Selected route: Eco
+Reason: minimum distance among suitable routes.
+Distance: 10.0 km
+Total time: 35 min
+Total cost: 2000.0 KZT
+```
+
+## Extensibility and SOLID
+
+Instead of an `if/else` chain, each algorithm in the scheduler implements a common interface. To extend the system, one simply implements `RouteStrategy` and passes the object to the scheduler or adds it to the comparison list. If an algorithm is intended for automatic selection, it is registered with a corresponding priority. When `DistanceFirstStrategy` was added, the only change required in the existing codebase was updating the comparison list in `Main`.
+
+- **SRP:** The selector chooses the algorithm, the scheduler delegates execution, the strategies select the route, and constraint validation is handled separately.
+- **OCP:** New strategies can be integrated without modifying the scheduler or the comparison service.
+- **DIP:** The scheduler depends on the `RouteStrategy` interface rather than on any specific algorithm.
+
+In Assignment 3, the **Bridge** pattern linked two independently extensible hierarchies: `Notification` types and `MessageSender` channels. Here, the **Strategy** pattern allows for swapping the algorithm used to solve a single task—route selection. Both patterns support swapping objects at runtime; the difference lies in which parts of the system need to be modified independently.
+
+Project limitation: The system compares pre-existing routes based on provided data rather than constructing them from a road network. The "Balanced" score depends on the set of valid candidates; therefore, scores from different requests cannot be directly compared.
+
+## UML and Tests
+
+- [Class Diagram](docs/class-diagram.puml) — covers the context, interface, implementations, and models.
+- [Sequence Diagram](docs/sequence-diagram.puml) — illustrates automatic selection and scheduling for urgent deliveries.
+
+The diagrams are provided in PlantUML format. Open the files in an editor that supports PlantUML to preview them.
+
+The final implementation includes **67 tests.
+JUnit 5 tests: 67 passed, 0 errors. They cover five algorithms, three switches, automatic selection, comparison, constraints, weight verification, and edge cases.
